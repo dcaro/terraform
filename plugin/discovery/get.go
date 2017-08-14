@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"runtime"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	getter "github.com/hashicorp/go-getter"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/mitchellh/cli"
 )
 
 // Releases are located by parsing the html listing from releases.hashicorp.com.
@@ -58,6 +60,8 @@ type ProviderInstaller struct {
 
 	// Skip checksum and signature verification
 	SkipVerify bool
+
+	Ui cli.Ui // Ui for output
 }
 
 // Get is part of an implementation of type Installer, and attempts to download
@@ -116,6 +120,7 @@ func (i *ProviderInstaller) Get(provider string, req Constraints) (PluginMeta, e
 
 		log.Printf("[DEBUG] fetching provider info for %s version %s", provider, v)
 		if checkPlugin(url, i.PluginProtocolVersion) {
+			i.Ui.Info(fmt.Sprintf("- Downloading %s %s from %s", provider, v.String(), shortenUrl(url)))
 			log.Printf("[DEBUG] getting provider %q version %q at %s", provider, v, url)
 			err := getter.Get(i.Dir, url)
 			if err != nil {
@@ -421,4 +426,12 @@ func getFile(url string) ([]byte, error) {
 		return data, err
 	}
 	return data, nil
+}
+
+func shortenUrl(rawurl string) string {
+	u, err := neturl.Parse(rawurl)
+	if err != nil {
+		return rawurl
+	}
+	return fmt.Sprintf("%s://%s", u.Scheme, u.Hostname())
 }
